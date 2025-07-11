@@ -3,14 +3,19 @@ import logging
 from pathlib import Path
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, Trainer, DataCollatorForLanguageModeling
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+import torch
 from .dataset import build
 LOG = logging.getLogger(__name__)
 DEFAULT = "mistralai/Mistral-7B-Instruct-v0.2"
 
 def train(corpus="data/clean.txt", out="models/rap-lora", base=DEFAULT, epochs=3, batch=1, lr=2e-4):
     from bitsandbytes import BitsAndBytesConfig
-    qc = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_use_double_quant=True,
-                            bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype="float16")
+    qc = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.float16,
+    )
     tok = AutoTokenizer.from_pretrained(base, use_fast=True)
     tok.pad_token = tok.eos_token
     model = AutoModelForCausalLM.from_pretrained(base, quantization_config=qc)
