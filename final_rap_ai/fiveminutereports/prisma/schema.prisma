@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  agency       Agency?
+  
+  @@map("users")
+}
+
+model Agency {
+  id           String   @id @default(cuid())
+  ownerUserId  String   @unique
+  owner        User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  name         String
+  logoUrl      String?
+  primaryColor String?
+  createdAt    DateTime @default(now())
+  
+  clients      Client[]
+  integrations Integration[]
+  events       Event[]
+  
+  @@map("agencies")
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  agencyId  String
+  agency    Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  name      String
+  industry  String?
+  notes     String?
+  createdAt DateTime @default(now())
+  
+  integrations ClientIntegration[]
+  reports      Report[]
+  events       Event[]
+  
+  @@map("clients")
+}
+
+enum IntegrationType {
+  google_ads
+}
+
+model Integration {
+  id           String             @id @default(cuid())
+  agencyId     String
+  agency       Agency             @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  type         IntegrationType
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  
+  clients      ClientIntegration[]
+  events       Event[]
+  
+  @@map("integrations")
+}
+
+model ClientIntegration {
+  id                String       @id @default(cuid())
+  clientId          String
+  client            Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  integrationId     String
+  integration       Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  externalAccountId String
+  createdAt         DateTime     @default(now())
+  
+  @@map("client_integrations")
+}
+
+enum ReportStatus {
+  pending
+  success
+  error
+}
+
+model Report {
+  id            String       @id @default(cuid())
+  clientId      String
+  client        Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  periodStart   DateTime
+  periodEnd     DateTime
+  status        ReportStatus @default(pending)
+  generatedAt   DateTime?
+  webViewSlug   String       @unique
+  pdfUrl        String?
+  summaryJson   Json
+  createdAt     DateTime     @default(now())
+  
+  events        Event[]
+  
+  @@map("reports")
+}
+
+model ReportSchedule {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  frequency   String   @default("monthly")
+  dayOfMonth  Int
+  lastRunAt   DateTime?
+  createdAt   DateTime @default(now())
+  
+  @@map("report_schedules")
+}
+
+model Event {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agencyId  String?
+  agency    Agency?  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  type      String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  
+  @@map("events")
+}
